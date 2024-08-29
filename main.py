@@ -1,6 +1,7 @@
 import os
 import requests
 import json
+import xmltodict
 
 FILES_DIR = './files/'
 
@@ -95,6 +96,29 @@ def cme_create_car(CME_TOKEN, dealerId, dmsCarId, payload):
     return False
 
 
+def cme_update_car_info(CME_TOKEN, dealerId, dmsCarId, payload):
+    """Обновление данных авто в СМЕ"""
+    try:
+        url = f'https://lk.cm.expert/api/v1/dealers/{dealerId}/dms/cars/{dmsCarId}'
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {CME_TOKEN}',
+        }
+        response = requests.request(
+            "PATCH",
+            url,
+            headers=headers,
+            data=json.dumps(payload)
+        )
+        if response.status_code == 200:
+            return True
+        else:
+            print(response.text)
+            return False  
+    except:
+        return False 
+
+
 def replace_with_chage_stock_type():
     """Перемещение авто по списку с изменением типа стока
     
@@ -160,18 +184,71 @@ def replace_with_chage_stock_type():
             print(f'{counter}/{counter_total}: {dmsCarId} - возникла ошибка')
 
 
+def update_photos_cme_car_from_avito_feed():
+    """Обновление данных авто в СМЕ из фида Авито"""
+    
+    CME_TOKEN = cme_get_token()
+    feed_name = input('Переместите фид формата Avito в папку "files" и введите название фида без ".xml": ')
+
+    # Распарсить фид Авито
+    feed = open(f'{FILES_DIR}{feed_name}.xml', 'rb')
+    feed_dict = xmltodict.parse(feed).get('Ads').get('Ad')
+
+    # Словарь для загрузки данных 
+    payload = {}
+
+    counter = 0
+    counter_total = len(feed_dict)
+    for car in feed_dict:
+        counter += 1
+
+        # Получить VIN
+        try:
+            vin = car.get('VIN')
+        except:
+            vin = None
+
+        # В фиде может не быть тега фотографий
+        photosUrls = []
+        try:
+            images = car.get('Images').get('Image')
+            for image in images:
+                image = image.get('@url')
+                photosUrls.append(image)
+        except:
+            print(f'{vin} - нет фото')
+        if len(photosUrls) >= 1:
+            payload['photosUrls'] = photosUrls
+
+        # Найти авто на складе СМЕ
+        cme_car_info = cme_get_car_info(CME_TOKEN, vin)
+        if cme_car_info is None:
+            """TODO: проверять наличие авто по номеру кузова"""
+            print(f'{counter}/{counter_total}: {vin} - В СМЕ нет такого авто')
+            continue
+        dmsCarId = cme_car_info.get('dmsCarId')
+        dealerId = cme_car_info.get('dealerId')
+
+        # Обновление описания в СМЕ
+        update_result = cme_update_car_info(CME_TOKEN, dealerId, dmsCarId, payload)
+        print(f'{counter}/{counter_total}: {vin} - {update_result}')
+
+
 def menu():
     """Меню функций"""
     print("""
+    ДОСТУПНЫЕ ИНСТРУМЕНТЫ
     1 - переместить авто со сменой типа стока
-    2 - тут еще ничего нет
-    3 - ...
+    2 - перенести фотографии из фида авито в авто на складе
     """)
-    task = int(input('Введите номер функции и нажмите Enter: '))
-    if task == 1:
-        replace_with_chage_stock_type()
-
-
+    while True:
+        task = input('Введите номер функции и нажмите Enter: ')
+        if task == '1':
+            replace_with_chage_stock_type()
+        elif task == '2':
+            update_photos_cme_car_from_avito_feed()
+        else:
+            print('Нужно ввести номер одной из команд')
 
 if __name__ == '__main__':
     menu()
