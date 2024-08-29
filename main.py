@@ -234,12 +234,57 @@ def update_photos_cme_car_from_avito_feed():
         print(f'{counter}/{counter_total}: {vin} - {update_result}')
 
 
+def update_description_cme_car_from_avito_feed():
+    """Обновление данных авто в СМЕ из фида Авито"""
+    
+    CME_TOKEN = cme_get_token()
+    feed_name = input('Переместите фид формата Avito в папку "files" и введите название фида без ".xml": ')
+
+    # Распарсить фид Авито
+    feed = open(f'{FILES_DIR}{feed_name}.xml', 'rb')
+    feed_dict = xmltodict.parse(feed).get('Ads').get('Ad')
+
+    # Словарь для загрузки данных 
+    payload = {}
+
+    counter = 0
+    counter_total = len(feed_dict)
+    for car in feed_dict:
+        counter += 1
+
+        # Получить VIN
+        try:
+            vin = car.get('VIN')
+        except:
+            vin = None
+
+        # Описания
+        description = car.get('description')
+        len_description = len(description)
+        if len_description > 0:
+            payload['description'] = description
+
+        # Найти авто на складе СМЕ
+        cme_car_info = cme_get_car_info(CME_TOKEN, vin)
+        if cme_car_info is None:
+            """TODO: проверять наличие авто по номеру кузова"""
+            print(f'{counter}/{counter_total}: {vin} - В СМЕ нет такого авто')
+            continue
+        dmsCarId = cme_car_info.get('dmsCarId')
+        dealerId = cme_car_info.get('dealerId')
+
+        # Обновление описания в СМЕ
+        update_result = cme_update_car_info(CME_TOKEN, dealerId, dmsCarId, payload)
+        print(f'{counter}/{counter_total}: {vin} - {update_result}')
+
+
 def menu():
     """Меню функций"""
     print("""
     ДОСТУПНЫЕ ИНСТРУМЕНТЫ
     1 - переместить авто со сменой типа стока
     2 - перенести фотографии из фида авито в авто на складе
+    3 - перенести описания из фида авито в авто на складе
     """)
     while True:
         task = input('Введите номер функции и нажмите Enter: ')
@@ -247,6 +292,8 @@ def menu():
             replace_with_chage_stock_type()
         elif task == '2':
             update_photos_cme_car_from_avito_feed()
+        elif task == '3':
+            update_description_cme_car_from_avito_feed()
         else:
             print('Нужно ввести номер одной из команд')
 
