@@ -195,12 +195,13 @@ def update_photos_cme_car_from_avito_feed():
     feed_dict = xmltodict.parse(feed).get('Ads').get('Ad')
 
     # Словарь для загрузки данных 
-    payload = {}
 
     counter = 0
     counter_total = len(feed_dict)
     for car in feed_dict:
         counter += 1
+
+        payload = {}
 
         # Получить VIN
         try:
@@ -216,7 +217,10 @@ def update_photos_cme_car_from_avito_feed():
                 image = image.get('@url')
                 photosUrls.append(image)
         except:
-            print(f'{vin} - нет фото')
+            # Парсинг фида ломается, если только одно фото
+            image = car.get('Images').get('Image').get('@url')
+            photosUrls.append(image)
+            pass
         if len(photosUrls) >= 1:
             payload['photosUrls'] = photosUrls
 
@@ -230,6 +234,10 @@ def update_photos_cme_car_from_avito_feed():
         dealerId = cme_car_info.get('dealerId')
 
         # Обновление описания в СМЕ
+        is_new_data = len(payload)
+        if is_new_data == 0:
+            print(f'{counter}/{counter_total}: {vin} - нет фото для обновления')
+            continue
         update_result = cme_update_car_info(CME_TOKEN, dealerId, dmsCarId, payload)
         print(f'{counter}/{counter_total}: {vin} - {update_result}')
 
@@ -245,12 +253,13 @@ def update_description_cme_car_from_avito_feed():
     feed_dict = xmltodict.parse(feed).get('Ads').get('Ad')
 
     # Словарь для загрузки данных 
-    payload = {}
 
     counter = 0
     counter_total = len(feed_dict)
     for car in feed_dict:
         counter += 1
+        
+        payload = {}
 
         # Получить VIN
         try:
