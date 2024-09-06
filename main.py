@@ -51,7 +51,7 @@ def cme_get_car_info(CME_TOKEN, value, field='vin', stockState='in'):
             headers=headers
         ).json()[0]
     except Exception as error:
-        print(error)
+        # print(error)
         response = None
     return response
 
@@ -268,9 +268,22 @@ def update_description_cme_car_from_avito_feed():
             vin = None
 
         # Описания
-        description = car.get('description')
-        len_description = len(description)
-        if len_description > 0:
+        description = car.get('Description')
+        if len(description) > 0:
+            # Замена символов HTML разметки описания из фида Avito
+            simbols_for_replace = {
+                '<p>': '\n', 
+                '</p>': '',
+                '<br>': '\n',
+                '<ul>': '',
+                '</ul>': '',
+                '<li>': '\n',
+                '</li>': '',
+                '<strong>': '**',
+                '</strong>': '**',
+            }
+            for old_simbol, new_simbol in simbols_for_replace.items():
+                description = description.replace(old_simbol, new_simbol)
             payload['description'] = description
 
         # Найти авто на складе СМЕ
