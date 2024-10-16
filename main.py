@@ -4,6 +4,7 @@ import json
 import xmltodict
 
 FILES_DIR = './files/'
+# FILES_DIR = ''
 
 
 def cme_get_token(api_login=None, api_password=None):
@@ -117,6 +118,19 @@ def cme_update_car_info(CME_TOKEN, dealerId, dmsCarId, payload):
             return False  
     except:
         return False 
+
+
+def save_feed_by_url(url):
+    """Скачивание фида по ссылке"""
+    file_name = url.split('/')[-1]
+    response = requests.get(url)
+    file_path = f'{FILES_DIR}{file_name}'
+    
+    if response.status_code != 200:
+        return None
+    with open(file_path, 'wb') as file:
+        file.write(response.content)
+    return file_name
 
 
 def replace_with_chage_stock_type():
@@ -245,8 +259,10 @@ def update_photos_cme_car_from_avito_feed():
 def update_description_cme_car_from_avito_feed():
     """Обновление данных авто в СМЕ из фида Авито"""
     
-    CME_TOKEN = cme_get_token()
-    feed_name = input('Переместите фид формата Avito в папку "files" и введите название фида без ".xml": ')
+    # CME_TOKEN = cme_get_token()
+    # feed_name = input('Переместите фид формата Avito в папку "files" и введите название фида без ".xml": ')
+    feed_url = input('Вставьте ссылку на фид: ')
+    feed_name = save_feed_by_url(feed_url)
 
     # Распарсить фид Авито
     feed = open(f'{FILES_DIR}{feed_name}.xml', 'rb')
